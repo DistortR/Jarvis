@@ -4,30 +4,33 @@ Jarvis accepts typed requests or spoken English, sends the text to Codex, and pl
 
 ## Setup
 
-From this folder, create the environment and download the voice.
+Install from a normal desktop session as your own user. You need `uv`, `curl`, the Codex CLI signed in to ChatGPT, Voxtype, PipeWire, FFmpeg, Quickshell, and systemd user services.
 
 ```sh
-uv venv .venv
-UV_CACHE_DIR="$PWD/.uv-cache" uv pip install -r requirements.txt
-mkdir -p .jarvis/voices
-base=https://huggingface.co/vishalrao8/piper-jarvis-high/resolve/main
-for name in en_GB-jarvis-high.onnx en_GB-jarvis-high.onnx.json; do
-    curl -fLS "$base/$name" -o ".jarvis/voices/$name" || break
-done
+sh install.sh
 ```
 
-You need the Codex CLI signed in to ChatGPT and a running PipeWire desktop session with `pw-play`, plus FFmpeg for reply loudness. Piper runs locally. Codex needs internet access and receives the request as text.
+The installer creates the Python 3.12 environment, downloads missing voice and wake models and Whisper `base.en`, checks the installation, and enables Jarvis at graphical login. It also restarts Jarvis if a graphical session is active or the service is already running.
+
+After pulling updates, rerun the same installer from the checkout.
+
+```sh
+git pull
+sh install.sh
+```
+
+Existing models and conversation state are reused. Codex needs internet access and receives the request as text.
 
 ## Run
 
 ```sh
-.venv/bin/python jarvis.py 'Preséntate en una frase.'
+.wake-venv/bin/python jarvis.py 'Preséntate en una frase.'
 ```
 
 For a hands-free turn, run this from your normal PipeWire desktop session, wait for the chime and say your request in English. Jarvis stops after about one second of silence, with a 20-second recording limit.
 
 ```sh
-.venv/bin/python jarvis.py --listen
+.wake-venv/bin/python jarvis.py --listen
 ```
 
 Microphone mode needs `pw-record` and Voxtype with Whisper `base.en` installed. Check with `voxtype info models`. The English-only model applies to microphone input. Typed Spanish prompts still work.
@@ -52,28 +55,7 @@ Say **“Jarvis”** when the listener is ready, then wait for the chime before 
 
 After a reply, start speaking within **two seconds** to ask a follow-up without saying “Jarvis” again. If you start in time, Jarvis lets you finish. Wake-word detection resumes as soon as the follow-up window closes. **Shift+F1** still starts the next request immediately.
 
-To recreate the wake environment, install Python 3.12 and OpenWakeWord in this folder. The existing text and `--listen` commands can still use `.venv/`. Install the ONNX dependencies explicitly because OpenWakeWord 0.6.0 also declares a TFLite dependency that has no Python 3.12 Linux wheel.
-
-```sh
-export UV_CACHE_DIR="$PWD/.uv-cache"
-export UV_PYTHON_INSTALL_DIR="$PWD/.jarvis/python"
-uv python install 3.12
-uv venv --python 3.12 .wake-venv
-uv pip install --python .wake-venv/bin/python -r requirements.txt scipy scikit-learn tqdm requests
-uv pip install --python .wake-venv/bin/python --no-deps openwakeword==0.6.0
-
-mkdir -p .jarvis/wake-models
-base=https://github.com/dscripka/openWakeWord/releases/download/v0.5.1
-for name in melspectrogram embedding_model; do
-    curl -fLS "$base/$name.onnx" -o ".jarvis/wake-models/$name.onnx" || break
-done
-```
-
-The single-word model comes from [Tater Wake Words](https://github.com/TaterTotterson/Tater-Wake-Words/issues/403).
-
-```sh
-curl -fLS https://raw.githubusercontent.com/TaterTotterson/Tater-Wake-Words/main/microWakeWordsV9/jarvis.oww.onnx -o .jarvis/wake-models/jarvis.oww.onnx
-```
+The single-word model comes from [Tater Wake Words](https://github.com/TaterTotterson/Tater-Wake-Words/issues/403). The installer uses the ONNX version of OpenWakeWord.
 
 ## Start at desktop login
 
@@ -83,7 +65,7 @@ The installed `jarvis.service` starts with the systemd user graphical session an
 - Press **Shift+F1** or click **Silence** during a reply to stop playback and mute the rest of that turn. Codex can finish the request in the background.
 - The window displays the full reply even when audio is silenced. It stays visible through follow-up listening and after Jarvis goes idle. Click **Close** to dismiss it or start a new request.
 
-The Omarchy Hyprland binding runs `systemctl --user kill --kill-whom=main --signal=USR1 jarvis.service`.
+To add the optional Shift+F1 shortcut on another Omarchy machine, bind it in Hyprland to `systemctl --user kill --kill-whom=main --signal=USR1 jarvis.service`.
 
 ```sh
 systemctl --user status jarvis.service
@@ -92,4 +74,4 @@ systemctl --user start jarvis.service   # Resume listening
 journalctl --user -u jarvis.service -n 30 --no-pager
 ```
 
-To turn off startup and stop the listener, run `systemctl --user disable --now jarvis.service`. To enable it again, run `systemctl --user enable --now "$PWD/jarvis.service"` from the Jarvis folder. The unit points to this checkout. Update its paths and reinstall it if the folder moves.
+To turn off startup and stop the listener, run `systemctl --user disable --now jarvis.service`. To enable it again, run `systemctl --user enable --now "$PWD/jarvis.service"` from the Jarvis folder. The unit uses the checkout it is linked to. If you move the folder, disable the old service before moving it, then run the installer from the new checkout.
