@@ -1,0 +1,15 @@
+[Unit]
+Description=Jarvis wake-word assistant
+PartOf=graphical-session.target
+Wants=pipewire.service wireplumber.service
+After=pipewire.service wireplumber.service
+
+[Service]
+WorkingDirectory=%h/Documents/Personal/CodeProjects/Jarvis
+Environment=JARVIS_DESKTOP_STATUS=1
+ExecStart=%h/Documents/Personal/CodeProjects/Jarvis/.wake-venv/bin/python -B jarvis.py --wake
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

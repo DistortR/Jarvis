@@ -1,0 +1,5 @@
+.venv/
+.uv-cache/
+.jarvis/
+__pycache__/
+.wake-venv/
